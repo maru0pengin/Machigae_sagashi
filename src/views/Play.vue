@@ -67,8 +67,11 @@
           </div>
         </div>
       </div>
-      <div class="flex justify-end mt-1 text-xs">音源：OtoLogic</div>
-      <div class="flex justify-end mt-1">
+      <div class="flex justify-end mt-1 mx-2 text-xs">音源：OtoLogic</div>
+      <div class="flex justify-end items-center mt-1">
+        <button class="delete-button" @click="openDeleteModal">
+          この問題を削除
+        </button>
         <QRCode :QRCodeTitle="title" :url="location" />
       </div>
     </div>
@@ -92,6 +95,32 @@
         </div>
       </div>
     </ResultDisplay>
+    <Modal
+      v-bind:show="isShowDeleteModal"
+      v-bind:klass="'w-5/6 md:w-2/3 lg:w-1/3'"
+    >
+      <p class="text-xl">削除パスワードを入力してください</p>
+      <div class="mx-auto my-4">
+        <input
+          type="text"
+          v-model="password"
+          class="input-form"
+          placeholder="削除用パスワード"
+          required
+        />
+        <div class="text-sm mt-2">
+          <p class="text-left text-red-500">※削除した作品は復元できません。</p>
+        </div>
+      </div>
+      <div class="ml-auto">
+        <button class="delete-button" @click="deleteQuiz">
+          この問題を削除
+        </button>
+        <button class="main_button mx-2" @click="closeDeleteModal">
+          キャンセル
+        </button>
+      </div>
+    </Modal>
     <Modal v-bind:show="isCrear" v-bind:klass="'w-5/6 md:w-2/3 lg:w-1/3'">
       <img src="@/assets/CLEAR.png" />
 
@@ -135,6 +164,7 @@ import Modal from '@/components/Modal'
 import ResultDisplay from '@/components/ResultDisplay'
 import QRCode from '@/components/QRCode'
 import { getAuthor } from '@/utils/get_author'
+//import { getFunctions, httpsCallable } from 'firebase/functions'
 
 export default {
   data: function () {
@@ -159,8 +189,11 @@ export default {
       isCorrect: false,
       centroids: [],
       clearedCountArray: [],
-      ImgPositionX: null, //間違い画像の位置(x)
-      ImgPositionY: null, //間違い画像の位置(y)
+      ImgPositionX: null, // 間違い画像の位置(x)
+      ImgPositionY: null, // 間違い画像の位置(y)
+      isLoggedQuiz: false, // ログインされた状態で投稿されたクイズかどうか
+      isShowDeleteModal: false,
+      password: '',
     }
   },
   components: {
@@ -208,8 +241,10 @@ export default {
           if (doc.data().authorRef) {
             let author = await getAuthor(doc)
             this.name = author.displayName
+            this.isLoggedQuiz = true
           } else {
             this.name = doc.data().name
+            this.isLoggedQuiz = false
           }
 
           this.title = doc.data().title
@@ -358,6 +393,45 @@ export default {
       this.timer = 0.0
       this.displayTimer = '0.00'
       this.clearedCountArray = []
+    },
+    closeDeleteModal() {
+      this.isShowDeleteModal = false
+    },
+    openDeleteModal() {
+      this.isShowDeleteModal = true
+    },
+    deleteQuiz() {
+      const functions = firebase.app().functions('asia-northeast1')
+      console.log(functions)
+      if (this.password) {
+        var onDeleteQuiz = firebase.functions().httpsCallable('onDeleteQuiz')
+        onDeleteQuiz().then((result) => {
+          // Read result of the Cloud Function.
+          var sanitizedMessage = result.data.text
+          console.log(sanitizedMessage)
+        })
+
+        // const functions = getFunctions()
+        // const onDeleteQuiz = httpsCallable(functions, 'onDeleteQuiz')
+        // console.log('2')
+        // onDeleteQuiz()
+        //   .then((result) => {
+        //     // Read result of the Cloud Function.
+        //     /** @type {any} */
+        //     const data = result.data
+        //     const sanitizedMessage = data.text
+        //     console.log(data)
+        //     console.log(sanitizedMessage)
+        //   })
+        //   .catch((err) => {
+        //     console.log(err)
+        //   })
+      } else {
+        this.$message.warning('パスワードを入力してください', {
+          showClose: false,
+          type: 'error',
+        })
+      }
     },
   },
 }

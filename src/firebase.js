@@ -1,5 +1,7 @@
 import firebase from "firebase/app"
+import 'firebase/functions'
 import store from "./store";
+
 
 require('dotenv').config();
 

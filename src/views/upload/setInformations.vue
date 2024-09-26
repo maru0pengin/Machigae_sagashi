@@ -9,7 +9,7 @@
         <input
           type="text"
           v-model="title"
-          class="px-2 py-1 border border-blue-200 hover:border-blue-400 rounded-sm placeholder-gray-300 outline-none"
+          class="input-form"
           placeholder="作品名"
           required
         />
@@ -19,8 +19,27 @@
           <input
             type="text"
             v-model="name"
-            class="px-2 py-1 border border-blue-200 hover:border-blue-400 rounded-sm placeholder-gray-300 outline-none"
+            class="input-form"
             placeholder="ハンドルネーム"
+            required
+          />
+          <p class="px-4 text-left pt-2">
+            削除用パスワードを入力してください<br /><span class="text-xs"
+              >(6文字以上)</span
+            >
+          </p>
+          <input
+            type="text"
+            v-model="password"
+            class="input-form"
+            placeholder="削除用パスワード"
+            required
+          />
+          <input
+            type="text"
+            v-model="retypePassword"
+            class="input-form"
+            placeholder="再入力"
             required
           />
         </div>
@@ -82,6 +101,8 @@ export default {
       isShowModal: false,
       storageRef: null,
       loading: false,
+      password: '',
+      retypePassword: '',
     }
   },
   computed: {
@@ -104,7 +125,7 @@ export default {
     defaltIncorrect: String,
     differencesImage: String,
   },
-  created: function() {
+  created: function () {
     Firebase.onAuth()
     this.db = firebase.firestore() // dbインスタンスを初期化
     this.storageRef = firebase.storage().ref()
@@ -118,80 +139,118 @@ export default {
   },
   methods: {
     async submit() {
-      if (this.title && (this.name || this.userStatus)) {
-        this.loading = true
-        let uid,
-          userRef = null
-        if (this.userStatus) {
-          uid = this.user?.uid
-          userRef = this.db.collection('users').doc(uid)
-        }
-        let quizzesCollection = this.db.collection('quizzes')
-        let images = {
-          correct: this.correctImage,
-          incorrect: this.incorrectImage,
-        }
-        let quiz = [
-          {
-            differencesImage: this.differencesImage,
-            images: images,
-          },
-        ]
-        // 「quizzes」というコレクションに対して {} で定義した情報を add する
-        /*FireStoreへの保存*/
-        const quizRef = await quizzesCollection
-          .add({
-            createdAt: new Date(),
-            isPublic: this.isPublic,
-            name: this.name ?? '',
-            title: this.title,
-            authorRef: userRef ?? '',
-            quiz: quiz,
-            playedCount: 0,
-            imageURL: '',
-          })
-          .catch((err) => {
-            this.$rollbar.error(err)
-            this.$message.warning(
-              '作品の投稿に失敗しました。時間を置いて再度お試しください。',
-              {
-                showClose: false,
-                type: 'error',
-              }
-            )
-            return false
-          })
-        this.id = quizRef.id
-        //storageへ見本画像を保存&URLの取得
-        const imageURL = await this.saveImage(this.id)
-        //firestoreへURLを保存
-        await quizzesCollection
-          .doc(this.id)
-          .update({
-            imageURL: imageURL,
-          })
-          .catch((err) => {
-            this.$rollbar.error(err)
-          })
-
-        // ログインしているのであれば、usersコレクションへ作品情報を追加
-        if (this.userStatus) {
-          await userRef
-            .update({
-              works: firebase.firestore.FieldValue.arrayUnion(quizRef),
-            })
-            .catch((err) => {
-              this.$rollbar.error(err)
-            })
-        }
-        this.loading = false
-        this.gotoNext()
-      } else {
-        this.$message.warning('作品情報を入力してください', {
+      if (!this.title) {
+        this.$message.warning('作品タイトルを入力してください', {
           showClose: false,
           type: 'error',
         })
+        return
       }
+      if (!this.userStatus) {
+        if (!this.name) {
+          this.$message.warning('ハンドルネームを入力してください', {
+            showClose: false,
+            type: 'error',
+          })
+          return
+        }
+        if (this.password.length < 6 || this.retypePassword.length < 6) {
+          this.$message.warning('パスワードが短すぎます', {
+            showClose: false,
+            type: 'error',
+          })
+          return
+        }
+        if (this.password.length !== this.password.length) {
+          this.$message.warning(
+            'パスワードと再入力されたパスワードが異なります',
+            {
+              showClose: false,
+              type: 'error',
+            }
+          )
+          return
+        }
+      }
+
+      this.loading = true
+      let uid,
+        userRef = null
+      if (this.userStatus) {
+        uid = this.user?.uid
+        userRef = this.db.collection('users').doc(uid)
+      }
+      let quizzesCollection = this.db.collection('quizzes')
+      let images = {
+        correct: this.correctImage,
+        incorrect: this.incorrectImage,
+      }
+      let quiz = [
+        {
+          differencesImage: this.differencesImage,
+          images: images,
+        },
+      ]
+      // 「quizzes」というコレクションに対して {} で定義した情報を add する
+      /*FireStoreへの保存*/
+      const quizRef = await quizzesCollection
+        .add({
+          createdAt: new Date(),
+          isPublic: this.isPublic,
+          name: this.name ?? '',
+          title: this.title,
+          authorRef: userRef ?? '',
+          quiz: quiz,
+          playedCount: 0,
+          imageURL: '',
+        })
+        .catch((err) => {
+          this.$rollbar.error(err)
+          this.$message.warning(
+            '作品の投稿に失敗しました。時間を置いて再度お試しください。',
+            {
+              showClose: false,
+              type: 'error',
+            }
+          )
+          return false
+        })
+      this.id = quizRef.id
+      //storageへ見本画像を保存&URLの取得
+      const imageURL = await this.saveImage(this.id)
+      //firestoreへURLを保存
+      await quizzesCollection
+        .doc(this.id)
+        .update({
+          imageURL: imageURL,
+        })
+        .catch((err) => {
+          this.$rollbar.error(err)
+        })
+
+      // ログインしているのであれば、usersコレクションへ作品情報を追加
+      if (this.userStatus) {
+        await userRef
+          .update({
+            works: firebase.firestore.FieldValue.arrayUnion(quizRef),
+          })
+          .catch((err) => {
+            this.$rollbar.error(err)
+          })
+      } else {
+        // ログインしていない時は、削除パスワードを保存する
+        let deletePasswordCollection = this.db.collection('deletePassword')
+        await deletePasswordCollection
+          .add({
+            password: this.password,
+            quizId: this.id,
+          })
+          .catch((err) => {
+            this.$rollbar.error(err)
+          })
+      }
+      this.loading = false
+      this.gotoNext()
     },
     async saveImage(id) {
       let image_url = this.correctImage

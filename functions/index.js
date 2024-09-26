@@ -33,6 +33,11 @@ exports.onDeleteStorageImage = functions.firestore.document('/quizzes/{quizId}')
   })
 })
 
+//匿名ユーザーがパスワードを使って削除
+exports.onDeleteQuiz = functions.https.onCall((data, context) => {
+  return{data:data,context:context}
+});
+
 exports.playpage = functions.https.onRequest((req, res) => {
   const [, , playid] = req.path.split('/')
   db.collection('quizzes').doc(playid).get().then(snap => {

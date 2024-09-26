@@ -1,26 +1,36 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
+    //match /{document=**} {
+    // allow read: if true
+    //}
+    match /users/{uid} {
       allow read: if true
     }
-    //ユーザーの更新と削除は本人だけ(作成はfunction)
+    match /quizzes/{quizzesId} {
+      allow read: if true
+    }
+    // ユーザーの更新と削除は本人だけ(作成はfunction)
     match /users/{uid}{
       allow update,delete: if request.auth !=null
         && request.auth.uid == uid;
     }
-    //ユーザー情報ドキュメントのパスを構築する関数
+    // ユーザー情報ドキュメントのパスを構築する関数
     function user(uid){
     	return /databases/$(database)/documents/users/$(uid)
     }
-    //作品の作者は作者だけ
-    match /quizzes/{quiz}{
+    // 作品の削除は作者だけ
+    match /quizzes/{quizzesId}{
       allow delete: if request.auth !=null
        && resource.data.authorRef == user(request.auth.uid)
     }
-    //作品の作成と更新は誰でも可能
-  	match /quizzes/{quiz}{
+    // 作品の作成と更新は誰でも可能
+  	match /quizzes/{quizzesId}{
       allow create,update: if true
+    }
+    // 削除パスワードは誰でも作成可能
+  	match /deletePassword/{passwordId}{
+      allow create: if true
     }
   }
 }
